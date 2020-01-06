@@ -159,4 +159,3 @@ class TestSensor(TestCase):
         self.assertEqual(
             _get_next_interval(), datetime(2010, 1, 1, 0, 1, 0), "Incorrect interval",
         )
-

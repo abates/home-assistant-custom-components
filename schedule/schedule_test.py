@@ -79,4 +79,3 @@ class TestSchedule(TestCase):
         self.assertEqual(schedule.update(self.time(3, 0)).state, "t3")
         self.assertEqual(schedule.update(self.time(1, 0)).state, "t1")
         self.assertEqual(schedule.update(self.time(0, 0)).state, "t3")
-
