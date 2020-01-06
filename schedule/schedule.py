@@ -24,7 +24,6 @@ class ScheduleSlot:
     @property
     def start(self):
         """Determine when this ScheduleSlot begins."""
-        pass
 
     def after(self, date_time):
         """Determine if this ScheduleSlot comes after the given time."""
