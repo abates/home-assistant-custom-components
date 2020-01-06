@@ -14,8 +14,9 @@
 
 """An integration that creates schedule sensors."""
 
-from homeassistant.const import ATTR_DATE, ATTR_TIME
 from datetime import datetime
+
+from homeassistant.const import ATTR_DATE, ATTR_TIME
 
 ATTR_SCHEDULE = "schedule"
 ATTR_SCHEDULES = "schedules"

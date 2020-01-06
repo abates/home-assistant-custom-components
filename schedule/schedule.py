@@ -1,20 +1,12 @@
 """Defines Schedule and ScheduleSlot."""
 
-from homeassistant.util import dt as dt_util
-from typing import Dict
 from datetime import date as new_date
-from homeassistant.const import (
-    ATTR_NAME,
-    ATTR_DATE,
-    ATTR_TIME,
-)
+from typing import Dict
 
-from . import (
-    ATTR_DATE_TEMPLATE,
-    ATTR_TIME_TEMPLATE,
-    parse_date,
-    parse_time,
-)
+from homeassistant.const import ATTR_DATE, ATTR_NAME, ATTR_TIME
+from homeassistant.util import dt as dt_util
+
+from . import ATTR_DATE_TEMPLATE, ATTR_TIME_TEMPLATE, parse_date, parse_time
 
 
 class ScheduleSlot:

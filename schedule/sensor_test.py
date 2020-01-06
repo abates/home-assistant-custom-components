@@ -13,19 +13,16 @@
 # limitations under the License.
 """Test that the ScheduleSensor works."""
 
-from homeassistant.util import dt as dt_util
+from datetime import date, datetime, time
 from unittest import TestCase
 from unittest.mock import MagicMock
-from .sensor import (
-    _get_next_interval,
-    _SCHEDULE_SCHEMA,
-    _DATE_SCHEMA,
-    _TIME_SCHEMA,
-)
+
+import voluptuous as vol
+
+from homeassistant.util import dt as dt_util
 
 from . import parse_date, parse_time
-from datetime import datetime, date, time
-import voluptuous as vol
+from .sensor import _DATE_SCHEMA, _SCHEDULE_SCHEMA, _TIME_SCHEMA, _get_next_interval
 
 
 class TestDateTimeParsing(TestCase):
