@@ -49,6 +49,5 @@ def parse_date(value: str):
 
 
 def parse_time(value: str):
-    """Parse a string into a time object"""
+    """Parse a string into a time object."""
     return _parse(value, TIME_FORMATS).time()
-

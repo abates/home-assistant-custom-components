@@ -1,4 +1,4 @@
-"""Defines Schedule and Schedule Slot"""
+"""Defines Schedule and ScheduleSlot."""
 
 from homeassistant.util import dt as dt_util
 from typing import Dict
@@ -18,32 +18,37 @@ from . import (
 
 
 class ScheduleSlot:
-    """One slot in a schedule"""
+    """One slot in a schedule."""
 
     def __init__(self, name, converter):
+        """Create a schedule slot.
+
+        The slot must be named and must have a datetime converter
+        supplied.
+        """
         self.name = name
         self._converter = converter
 
     @property
     def start(self):
-        """Determine when this ScheduleSlot begins"""
+        """Determine when this ScheduleSlot begins."""
         pass
 
     def after(self, date_time):
-        """Determine if this ScheduleSlot comes after the given time"""
+        """Determine if this ScheduleSlot comes after the given time."""
         return self._converter(date_time) < self.start
 
     def active_at(self, date_time):
-        """Determine if this ScheduleSlot is active for the given time"""
+        """Determine if this ScheduleSlot is active for the given time."""
         return self.start <= self._converter(date_time)
 
 
 class TimeSlot(ScheduleSlot):
-    """TimeSlot is a ScheduleSlot for a whole time (hh:mm:ss)"""
+    """TimeSlot is a ScheduleSlot for a whole time (hh:mm:ss)."""
 
     @classmethod
     def from_config(cls, config: Dict) -> "TimeSlot":
-        """Create a time slot from the supplied config/dict"""
+        """Create a time slot from the supplied config/dict."""
         return cls(
             config[ATTR_NAME],
             time=config.get(ATTR_TIME),
@@ -57,7 +62,7 @@ class TimeSlot(ScheduleSlot):
 
     @property
     def start(self):
-        """Determine when this time slot starts"""
+        """Determine when this time slot starts."""
         if self.time_template is None:
             return self.time
 
@@ -65,11 +70,11 @@ class TimeSlot(ScheduleSlot):
 
 
 class DateSlot(ScheduleSlot):
-    """DateSlot is a ScheduleSlot for whole dates"""
+    """DateSlot is a ScheduleSlot for whole dates."""
 
     @classmethod
     def from_config(cls, config: Dict) -> "DateSlot":
-        """Create a date slot from the supplied config/dict"""
+        """Create a date slot from the supplied config/dict."""
         return cls(
             config[ATTR_NAME],
             date=config.get(ATTR_DATE),
@@ -83,7 +88,7 @@ class DateSlot(ScheduleSlot):
 
     @property
     def start(self):
-        """Determine when this date slot starts"""
+        """Determine when this date slot starts."""
         if self.date_template is None:
             _date = self.date
             _date = new_date(
@@ -96,7 +101,7 @@ class DateSlot(ScheduleSlot):
 
 
 class Schedule:
-    """A complete list of timeslots for a given schedule"""
+    """A complete list of timeslots for a given schedule."""
 
     def __init__(self, hass, name, condition, slots):
         self.hass = hass
@@ -114,7 +119,7 @@ class Schedule:
         self.slots.sort(key=lambda slot: slot.start, reverse=True)
 
     def update(self, date_time):
-        """Update the schedules internal state for the given datetime"""
+        """Update the schedules internal state for the given datetime."""
 
         date_time = dt_util.as_local(date_time)
         if self.slots[-1].after(date_time):
@@ -143,12 +148,12 @@ class Schedule:
 
     @property
     def state(self):
-        """Get the name of the active schedule slot"""
+        """Get the name of the active schedule slot."""
         return self._state
 
     @property
     def active(self):
-        """Determine if this schedule is active"""
+        """Determine if this schedule is active."""
         if self._condition is None:
             return True
 
