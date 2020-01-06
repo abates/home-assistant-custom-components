@@ -26,6 +26,8 @@ from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.util import dt as dt_util
 
 from . import (
+    ATTR_INTERVAL,
+    ATTR_NEXT_UPDATE,
     ATTR_DATE_TEMPLATE,
     ATTR_SCHEDULE,
     ATTR_SCHEDULES,
@@ -125,12 +127,17 @@ class ScheduleSensor(Entity):
 
     @property
     def next_interval(self):
-        """Determine the next time this sensor should be updated."""
         interval = self._schedule.interval
         now = dt_util.utcnow()
         timestamp = int(dt_util.as_timestamp(now))
         delta = interval - (timestamp % interval)
-        return now + timedelta(seconds=delta)
+        self._next_update = now + timedelta(seconds=delta)
+        return self._next_update
+
+    @property
+    def next_update(self):
+        """The next time this sensor should be updated"""
+        return self._next_update
 
     @property
     def name(self):
@@ -141,6 +148,15 @@ class ScheduleSensor(Entity):
     def state(self):
         """Return the state of the sensor."""
         return self._state
+
+    @property
+    def device_state_attributes(self):
+        """Return the state attributes."""
+        return {
+            ATTR_SCHEDULE: self._schedule.name,
+            ATTR_INTERVAL: self._schedule.interval,
+            ATTR_NEXT_UPDATE: self._next_update,
+        }
 
     def _update_internal_state(self, date_time):
         """Fetch new state data for the sensor."""

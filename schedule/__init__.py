@@ -20,6 +20,8 @@ from homeassistant.const import ATTR_DATE, ATTR_TIME
 
 ATTR_SCHEDULE = "schedule"
 ATTR_SCHEDULES = "schedules"
+ATTR_INTERVAL = "interval"
+ATTR_NEXT_UPDATE = "next_update"
 ATTR_DATE_TEMPLATE = f"{ATTR_DATE}_template"
 ATTR_TIME_TEMPLATE = f"{ATTR_TIME}_template"
 

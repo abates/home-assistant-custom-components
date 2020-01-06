@@ -22,7 +22,8 @@ import voluptuous as vol
 from homeassistant.util import dt as dt_util
 
 from . import parse_date, parse_time
-from .sensor import _DATE_SCHEMA, _SCHEDULE_SCHEMA, _TIME_SCHEMA, _get_next_interval
+from .sensor import _DATE_SCHEMA, _SCHEDULE_SCHEMA, _TIME_SCHEMA, ScheduleSensor
+from .schedule import Schedule, DateSlot
 
 
 class TestDateTimeParsing(TestCase):
@@ -149,10 +150,22 @@ class TestSensor(TestCase):
         dt_util.utcnow = self.utcnow
 
     def test_get_next_interval(self):
+        sensor = ScheduleSensor(
+            None,
+            None,
+            [
+                Schedule(
+                    None,
+                    None,
+                    None,
+                    [DateSlot("", datetime(2010, 1, 1, 0, 0, 0).date())],
+                )
+            ],
+        )
         self.assertEqual(
-            _get_next_interval(), datetime(2010, 1, 1, 0, 1, 0), "Incorrect interval",
+            sensor.next_interval, datetime(2010, 1, 2, 0, 0, 0), "Incorrect interval",
         )
         dt_util.utcnow = MagicMock(return_value=datetime(2010, 1, 1, 0, 0, 59))
         self.assertEqual(
-            _get_next_interval(), datetime(2010, 1, 1, 0, 1, 0), "Incorrect interval",
+            sensor.next_interval, datetime(2010, 1, 2, 0, 0, 0), "Incorrect interval",
         )

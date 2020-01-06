@@ -52,6 +52,11 @@ class TimeSlot(ScheduleSlot):
         self.time_template = time_template
 
     @property
+    def interval(self):
+        """Return the update interval (60 seconds)"""
+        return 60
+
+    @property
     def start(self):
         """Determine when this time slot starts."""
         if self.time_template is None:
@@ -78,6 +83,11 @@ class DateSlot(ScheduleSlot):
         self.date_template = date_template
 
     @property
+    def interval(self):
+        """Return the update interval (86400 seconds)"""
+        return 86400
+
+    @property
     def start(self):
         """Determine when this date slot starts."""
         if self.date_template is None:
@@ -96,7 +106,7 @@ class Schedule:
 
     def __init__(self, hass, name, condition, slots):
         self.hass = hass
-        self.name = name
+        self._name = name
         self._state = "unknown"
         self._condition = condition
 
@@ -108,6 +118,11 @@ class Schedule:
                 slot.time_template.hass = hass
             self.slots.append(slot)
         self.slots.sort(key=lambda slot: slot.start, reverse=True)
+
+    @property
+    def name(self):
+        """Get the schedule name."""
+        return self._name
 
     def update(self, date_time):
         """Update the schedules internal state for the given datetime."""
@@ -127,15 +142,8 @@ class Schedule:
 
     @property
     def interval(self):
-        """Determine the update interval for this schedule.
-
-        Schedules made up of date slots will return an interval of 86400 (number of
-        seconds in a day).  Schedules made up of time slots will return an interval of
-        60 (number of seconds in a minute).
-        """
-        if isinstance(self.slots[0], DateSlot):
-            return 86400
-        return 60
+        """Determine the update interval for this schedule."""
+        return self.slots[0].interval
 
     @property
     def state(self):
