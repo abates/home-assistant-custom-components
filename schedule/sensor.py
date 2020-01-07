@@ -132,13 +132,13 @@ class ScheduleSensor(Entity):
         now = dt_util.utcnow()
         timestamp = int(dt_util.as_timestamp(now))
         delta = interval - (timestamp % interval)
-        self.next_update = now + timedelta(seconds=delta)
-        return self.next_update
+        self._next_update = now + timedelta(seconds=delta)
+        return self._next_update
 
     @property
     def next_update(self):
         """The next time this sensor should be updated"""
-        return self.next_update
+        return self._next_update
 
     @property
     def name(self):
