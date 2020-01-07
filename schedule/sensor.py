@@ -127,17 +127,18 @@ class ScheduleSensor(Entity):
 
     @property
     def next_interval(self):
+        """Determine the next time the sensor should be updated"""
         interval = self._schedule.interval
         now = dt_util.utcnow()
         timestamp = int(dt_util.as_timestamp(now))
         delta = interval - (timestamp % interval)
-        self._next_update = now + timedelta(seconds=delta)
-        return self._next_update
+        self.next_update = now + timedelta(seconds=delta)
+        return self.next_update
 
     @property
     def next_update(self):
         """The next time this sensor should be updated"""
-        return self._next_update
+        return self.next_update
 
     @property
     def name(self):
@@ -155,7 +156,7 @@ class ScheduleSensor(Entity):
         return {
             ATTR_SCHEDULE: self._schedule.name,
             ATTR_INTERVAL: self._schedule.interval,
-            ATTR_NEXT_UPDATE: self._next_update,
+            ATTR_NEXT_UPDATE: self.next_update,
         }
 
     def _update_internal_state(self, date_time):
