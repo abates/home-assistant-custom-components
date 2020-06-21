@@ -1,0 +1,8 @@
+{
+  "domain": "monoprice_rest",
+  "name": "Monoprice 6-Zone Amplifier via REST API",
+  "documentation": "",
+  "requirements": ["pymonoprice==0.3"],
+  "codeowners": ["@abates"],
+  "config_flow": false
+}
