@@ -1,13 +1,44 @@
-import voluptuous as vol
-import homeassistant.helpers.config_validation as cv
-from homeassistant.const import ATTR_NAME, CONF_URL, CONF_NAME, CONF_API_KEY
-from homeassistant.components.monoprice.media_player import MonopriceZone
-
-from pymonoprice import ZoneStatus
-import requests
+import asyncio
+from functools import wraps
 import logging
 from pprint import pformat
+from ssl import SSLCertVerificationError
 
+import requests
+import voluptuous as vol
+
+from homeassistant.components.media_player import MediaPlayerEntity
+from homeassistant.components.media_player.const import (
+    SUPPORT_SELECT_SOURCE,
+    SUPPORT_TURN_OFF,
+    SUPPORT_TURN_ON,
+    SUPPORT_VOLUME_MUTE,
+    SUPPORT_VOLUME_SET,
+    SUPPORT_VOLUME_STEP,
+)
+
+from homeassistant.const import (
+    ATTR_NAME,
+    CONF_API_KEY,
+    CONF_NAME,
+    CONF_PORT,
+    CONF_URL,
+    STATE_OFF,
+    STATE_ON,
+)
+from homeassistant.helpers import aiohttp_client
+import homeassistant.helpers.config_validation as cv
+from homeassistant.util import ssl
+
+DOMAIN = "monoprice_rest"
+SUPPORT_MONOPRICE = (
+    SUPPORT_VOLUME_MUTE
+    | SUPPORT_VOLUME_SET
+    | SUPPORT_VOLUME_STEP
+    | SUPPORT_TURN_ON
+    | SUPPORT_TURN_OFF
+    | SUPPORT_SELECT_SOURCE
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,112 +66,242 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     source_id_name = {
         int(index): value["name"] for index, value in config[CONF_SOURCES].items()
     }
-    _LOGGER.warn(f"source id name: {source_id_name}")
+
     source_name_id = {v: k for k, v in source_id_name.items()}
     source_names = sorted(source_name_id.keys(), key=lambda v: source_name_id[v])
     sources = [source_id_name, source_name_id, source_names]
 
-    _LOGGER.warn(f"SOURCES: {sources}")
-    monoprice = Monoprice(config.get(CONF_URL), config.get(CONF_API_KEY))
+    session = aiohttp_client.async_get_clientsession(hass)
 
-    for zone in monoprice.zones():
-        zones.append(MonopriceZone(monoprice, sources, "monoprice_rest", zone))
+    monoprice = Monoprice(config.get(CONF_URL), config.get(CONF_API_KEY), session)
 
-    async_add_entities(zones)
+    zones = await monoprice.zones()
+    if zones:
+        entities = []
+        for zone in zones:
+            _LOGGER.debug(f"Setting up zone {zone}")
+            entities.append(MonopriceZone(monoprice, sources, "monoprice_rest", zone))
+        async_add_entities(entities)
+    else:
+        _LOGGER.warn("Failed to retrieve zones from server")
 
 
 class Monoprice:
-    def __init__(self, url, apiKey):
+    def __init__(self, url, apiKey, session):
         self._url = url
         self._api_key = apiKey
         self._session = requests.Session()
-        pass
+        self._session = session
+        self._context = ssl.client_context()
 
-    def _request(self, method, url):
+    async def _request(self, method, url):
+        url = f"{self._url}/{url}"
         data = None
         try:
-            params = dict(key=self._api_key)
-            response = self._session.request(
-                method, f"{self._url}/{url}", params=params,
+            response = await self._session.request(
+                method,
+                url,
+                ssl=self._context,
+                headers={"X-Auth-Key": f"{self._api_key}"},
             )
 
-            if response.status_code == 200:
-                data = response.json()
-            elif response.status_code == 401:
+            if response.status == 200:
+                if response.content_type == "application/json":
+                    data = await response.json()
+                else:
+                    data = await response.text()
+
+            elif response.status == 401:
                 _LOGGER.warning("Authentication failed, check API KEY")
             else:
                 _LOGGER.warning(
-                    "Zone status update failed with HTTP code %d", response.status_code
+                    "%s Request %s failed with Server code %d",
+                    method,
+                    url,
+                    response.status,
                 )
         except ConnectionError as ex:
             self._update_success = False
-            _LOGGER.warning("Failed to connect to %s: %s", self._url, ex)
+            _LOGGER.warning("Failed to connect to %s: %s", url, ex)
+        except SSLCertVerificationError as ex:
+            self._update_success = False
+            _LOGGER.warning("SSL Verification failed")
         except ValueError as ex:
+            self._update_success = False
             _LOGGER.warning("JSON decoding failed: %s", ex)
         except Exception as ex:
-            _LOGGER.warning("Failed to retrieve zone status: %s", ex)
+            self._update_success = False
+            _LOGGER.warning("%s Request %s failed: %s", method, url, ex)
+            raise ex
 
         return data
 
-    def _get(self, url):
-        return self._request("GET", url)
+    async def get(self, url):
+        return await self._request("GET", url)
 
-    def _put(self, url):
-        return self._request("PUT", url)
+    async def put(self, url):
+        return await self._request("PUT", url)
 
-    def zones(self):
-        return self._get("zones")
+    async def zones(self):
+        zones = await self.get("zones")
+        _LOGGER.debug(f"Got zones {zones}")
+        return zones
 
-    def zone_status(self, zone: int):
+
+class MonopriceZone(MediaPlayerEntity):
+    """Representation of a Monoprice amplifier zone."""
+
+    def __init__(self, monoprice, sources, namespace, zone_id):
+        """Initialize new zone."""
+        self._monoprice = monoprice
+        # dict source_id -> source name
+        self._source_id_name = sources[0]
+        # dict source name -> source_id
+        self._source_name_id = sources[1]
+        # ordered list of all source names
+        self._source_names = sources[2]
+        self._zone_id = zone_id
+        self._unique_id = f"{namespace}_{self._zone_id}"
+        self._name = f"Zone {self._zone_id}"
+
+        self._snapshot = None
+        self._state = None
+        self._volume = None
+        self._source = None
+        self._mute = None
+        self._update_success = True
+
+    async def async_update(self):
+        """Retrieve latest state."""
         status = None
-        data = self._get(f"{zone}/status")
-        if data:
-            status = ZoneStatus(
-                data["zone"],
-                data["pa"],
-                data["power"],
-                data["mute"],
-                data["do_not_disturb"],
-                data["treble"],
-                data["bass"],
-                data["balance"],
-                data["volume"],
-                data["source"],
-                data["keypad"],
+        state = await self._monoprice.get(f"{self._zone_id}/status")
+        if not state:
+            self._update_success = False
+            return
+
+        self._state = STATE_ON if state["power"] else STATE_OFF
+        self._volume = state["volume"]
+        self._mute = state["mute"]
+        idx = state["source"]
+        if idx in self._source_id_name:
+            self._source = self._source_id_name[idx]
+        else:
+            self._source = None
+
+    @property
+    def entity_registry_enabled_default(self):
+        """Return if the entity should be enabled when first added to the entity registry."""
+        return self._zone_id < 20 or self._update_success
+
+    @property
+    def device_info(self):
+        """Return device info for this device."""
+        return {
+            "identifiers": {(DOMAIN, self.unique_id)},
+            "name": self.name,
+            "manufacturer": "Monoprice",
+            "model": "6-Zone Amplifier",
+        }
+
+    @property
+    def unique_id(self):
+        """Return unique ID for this device."""
+        return self._unique_id
+
+    @property
+    def name(self):
+        """Return the name of the zone."""
+        return self._name
+
+    @property
+    def state(self):
+        """Return the state of the zone."""
+        return self._state
+
+    @property
+    def volume_level(self):
+        """Volume level of the media player (0..1)."""
+        if self._volume is None:
+            return None
+        return self._volume / 38.0
+
+    @property
+    def is_volume_muted(self):
+        """Boolean if volume is currently muted."""
+        return self._mute
+
+    @property
+    def supported_features(self):
+        """Return flag of media commands that are supported."""
+        return SUPPORT_MONOPRICE
+
+    @property
+    def media_title(self):
+        """Return the current source as medial title."""
+        return self._source
+
+    @property
+    def source(self):
+        """Return the current input source of the device."""
+        return self._source
+
+    @property
+    def source_list(self):
+        """List of available input sources."""
+        return self._source_names
+
+    async def snapshot(self):
+        """Save zone's current state."""
+        self._snapshot = await self._monoprice.zone_status(self._zone_id)
+
+    async def restore(self):
+        """Restore saved state."""
+        if self._snapshot:
+            await self._monoprice.put(
+                f"{self._zone_id}/restore",
+                {
+                    "power": self._snapshot.power,
+                    "mute": self._snapshot.mute,
+                    "volume": self._snapshot.volume,
+                    "treble": self._snapshot.treble,
+                    "bass": self._snapshot.bass,
+                    "balance": self._snapshot.balance,
+                    "source": self._snapshot.source,
+                },
             )
-        return status
+            self.schedule_update_ha_state(True)
 
-    def set_power(self, zone: int, power: bool):
-        self._put(f"{zone}/power/{power}")
+    async def select_source(self, source):
+        """Set input source."""
+        if source not in self._source_name_id:
+            return
+        idx = self._source_name_id[source]
+        await self._monoprice.put(f"{self._zone_id}/source/{idx}")
 
-    def set_mute(self, zone: int, mute: bool):
-        self._put(f"{zone}/mute/{mute}")
+    async def turn_on(self):
+        """Turn the media player on."""
+        await self._monoprice.put(f"{self._zone_id}/power/True")
 
-    def set_volume(self, zone: int, volume: int):
-        self._put(f"{zone}/volume/{volume}")
+    async def turn_off(self):
+        """Turn the media player off."""
+        await self._monoprice.put(f"{self._zone_id}/power/False")
 
-    def set_treble(self, zone: int, treble: int):
-        self._put(f"{zone}/treble/{treble}")
+    async def mute_volume(self, mute):
+        """Mute (true) or unmute (false) media player."""
+        await self._monoprice.put(f"{self._zone_id}/mute/{mute}")
 
-    def set_bass(self, zone: int, bass: int):
-        self._put(f"{zone}/bass/{bass}")
+    async def set_volume_level(self, volume):
+        """Set volume level, range 0..1."""
+        await self._monoprice.put(f"{self._zone_id}/volume/{int(volume * 38)}")
 
-    def set_balance(self, zone: int, balance: int):
-        self._put(f"{zone}/balance/{balance}")
+    async def volume_up(self):
+        """Volume up the media player."""
+        if self._volume is None:
+            return
+        await self._monoprice.put(f"{self._zone_id}/volume/{min(self._volume + 1, 38)}")
 
-    def set_source(self, zone: int, source: int):
-        self._put(f"{zone}/source/{source}")
-
-    def restore_zone(self, status: ZoneStatus):
-        self._put(
-            f"{status.zone}/restore",
-            {
-                "power": status.power,
-                "mute": status.mute,
-                "volume": status.volume,
-                "treble": status.treble,
-                "bass": status.bass,
-                "balance": status.balance,
-                "source": status.source,
-            },
-        )
+    async def volume_down(self):
+        """Volume down media player."""
+        if self._volume is None:
+            return
+        await self._monoprice.put(f"{self._zone_id}/volume/{max(self._volume - 1, 0)}")
