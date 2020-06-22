@@ -1,7 +1,10 @@
 """template monkey patching"""
-
 from datetime import date, timedelta
+from os import path
+import ssl
+
 from homeassistant.helpers.template import TemplateEnvironment
+from homeassistant.util import ssl as hassl
 
 
 def nth_day(year, month, dow, week):
@@ -28,3 +31,15 @@ def new_init(self, hass):
 
 TemplateEnvironment.__init__ = new_init
 
+old_client_context = hassl.client_context
+
+
+def new_client_context() -> ssl.SSLContext:
+    context = old_client_context()
+    caFile = f"{path.dirname(__file__)}/../ca-cert.pem"
+    if path.exists(caFile):
+        context.load_verify_locations(caFile)
+    return context
+
+
+hassl.client_context = new_client_context
