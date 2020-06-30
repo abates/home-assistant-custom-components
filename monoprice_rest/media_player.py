@@ -59,7 +59,7 @@ PLATFORM_SCHEMA = cv.PLATFORM_SCHEMA.extend(
 
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    """Set up the sensor platform."""
+    """Set up the media player platform."""
     _LOGGER.debug("Setting up monoprice_rest")
     zones = []
 
@@ -90,13 +90,11 @@ class Monoprice:
     def __init__(self, url, apiKey, session):
         self._url = url
         self._api_key = apiKey
-        self._session = requests.Session()
         self._session = session
         self._context = ssl.client_context()
 
     async def _request(self, method, url):
         url = f"{self._url}/{url}"
-        data = None
         try:
             response = await self._session.request(
                 method,
