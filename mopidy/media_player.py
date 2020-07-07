@@ -43,7 +43,7 @@ class MopidyDevice(MpdDevice):
         self.hass = hass
         self._url = http_url
         self._session = aiohttp_client.async_get_clientsession(hass)
-        # self._context = ssl.client_context()
+        self._ssl_context = ssl.client_context()
         self._update = self.update
         self._image_url = None
         self._last_media_content_id = None
@@ -61,7 +61,7 @@ class MopidyDevice(MpdDevice):
 
         try:
             response = await self._session.request(
-                "POST", url, json=data, ssl=self._context,
+                "POST", url, json=data, ssl=self._ssl_context,
             )
 
             if response.status == 200:
