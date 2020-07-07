@@ -105,9 +105,9 @@ class Monoprice:
 
             if response.status == 200:
                 if response.content_type == "application/json":
-                    data = await response.json()
+                    return await response.json()
                 else:
-                    data = await response.text()
+                    return await response.text()
 
             elif response.status == 401:
                 _LOGGER.warning("Authentication failed, check API KEY")
@@ -131,8 +131,6 @@ class Monoprice:
             self._update_success = False
             _LOGGER.warning("%s Request %s failed: %s", method, url, ex)
             raise ex
-
-        return data
 
     async def get(self, url):
         return await self._request("GET", url)
