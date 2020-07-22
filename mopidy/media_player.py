@@ -92,9 +92,9 @@ class MopidyDevice(MpdDevice):
         if self._is_connected:
             if self._last_media_content_id != self.media_content_id:
                 self._image_url = await self._get_image_url(self.media_content_id)
+            self._last_media_content_id = self.media_content_id
         else:
             self._image_url = None
-        self._last_media_content_id = self.media_content_id
 
     @property
     def media_image_url(self):
