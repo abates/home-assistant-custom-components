@@ -119,16 +119,12 @@ class Monoprice:
                     response.status,
                 )
         except ConnectionError as ex:
-            self._update_success = False
             _LOGGER.warning("Failed to connect to %s: %s", url, ex)
         except SSLCertVerificationError as ex:
-            self._update_success = False
             _LOGGER.warning("SSL Verification failed")
         except ValueError as ex:
-            self._update_success = False
             _LOGGER.warning("JSON decoding failed: %s", ex)
         except Exception as ex:
-            self._update_success = False
             _LOGGER.warning("%s Request %s failed: %s", method, url, ex)
             raise ex
 
@@ -172,6 +168,7 @@ class MonopriceZone(MediaPlayerEntity):
         status = None
         state = await self._monoprice.get(f"{self._zone_id}/status")
         if not state:
+            self._state = None
             self._update_success = False
             return
 
