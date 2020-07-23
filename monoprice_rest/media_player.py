@@ -1,10 +1,8 @@
 import asyncio
-from functools import wraps
 import logging
-from pprint import pformat
 from ssl import SSLCertVerificationError
+from aiohttp.client_exceptions import ClientConnectorError
 
-import requests
 import voluptuous as vol
 
 from homeassistant.components.media_player import MediaPlayerEntity
@@ -118,7 +116,7 @@ class Monoprice:
                     url,
                     response.status,
                 )
-        except ConnectionError as ex:
+        except ClientConnectionError as ex:
             _LOGGER.warning("Failed to connect to %s: %s", url, ex)
         except SSLCertVerificationError as ex:
             _LOGGER.warning("SSL Verification failed")
