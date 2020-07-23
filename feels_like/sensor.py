@@ -16,9 +16,14 @@
 import voluptuous as vol
 import homeassistant.helpers.config_validation as cv
 
-from homeassistant.const import ATTR_NAME
+from homeassistant.const import ATTR_NAME, TEMP_FAHRENHEIT
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.event import async_track_state_change
+from homeassistant.util.temperature import convert as convert_temperature
+
+import logging
+
+_LOGGER = logging.getLogger(__name__)
 
 DEFAULT_DECIMALS = 2
 
@@ -48,6 +53,18 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     async_add_entities([sensor])
 
 
+def convert(state):
+    val = 0.0
+    try:
+        val = float(state.state)
+    except ValueError:
+        return None
+
+    if state.attributes["unit_of_measurement"] == "%":
+        return val
+
+    return convert_temperature(val, state.attributes["unit_of_measurement"], TEMP_FAHRENHEIT)
+
 class FeelsLikeSensor(Entity):
     """Sensor that presents the current slot for a configured schedule."""
 
@@ -55,12 +72,17 @@ class FeelsLikeSensor(Entity):
         """Initialize the sensor."""
         self.hass = hass
         self._name = name
-        self._temp = None
+        self._temp_sensor = temp_sensor
+        self._humidity_sensor = humidity_sensor
         self._decimals = decimals
+
+        self._temp = None
         self._humidity = None
         self._state = None
-        async_track_state_change(hass, [temp_sensor], self.async_update_temp)
-        async_track_state_change(hass, [temp_sensor], self.async_update_humidity)
+    
+    async def async_added_to_hass(self):
+        async_track_state_change(self.hass, [self._temp_sensor], self.async_update_temp)
+        async_track_state_change(self.hass, [self._humidity_sensor], self.async_update_humidity)
 
     @property
     def name(self):
@@ -72,32 +94,35 @@ class FeelsLikeSensor(Entity):
         """Return the state of the sensor."""
         return self._state
 
-    async def async_update_temp(self, event):
+    async def async_update_temp(self, entity, old_state, new_state):
         """Update the sensors internal temperature state"""
-        self._update_internal_state(event.data.get("new_state"), self._humidity)
+        self._temp = convert(new_state)
+        self._update_internal_state()
 
-    async def async_update_humidity(self, event):
+    async def async_update_humidity(self, entity, old_state, new_state):
         """Update the sensors internal humidity state"""
-        self._update_internal_state(self._temp, event.data.get("new_state"))
+        self._humidity = convert(new_state)
+        self._update_internal_state()
 
-    async def _update_internal_state(self, temp, humidity):
+    def _update_internal_state(self):
         """Fetch new state data for the sensor."""
-        if temp is None or humidity is None:
+        if self._temp is None or self._humidity is None:
             return
 
-        self._temp = temp
-        self._humidity = temp
+        if self._temp < 80.0:
+            self._state = self._temp
+        else:
+            self._state = round(
+                (-42.379
+                + 2.04901523 * self._temp
+                + 10.14333127 * self._humidity
+                - 0.22475541 * self._temp * self._humidity
+                - 0.00683783 * self._temp * self._temp
+                - 0.05481717 * self._humidity * self._humidity
+                + 0.00122874 * self._temp * self._temp * self._humidity
+                + 0.00085282 * self._temp * self._humidity * self._humidity
+                - 0.00000199 * self._temp * self._temp * self._humidity * self._humidity),
+                self._decimals,
+            )
 
-        self._state = round(
-            -42.379
-            + 2.04901523 * temp
-            + 10.14333127 * self._humidity
-            - 0.22475541 * self._temp * self._humidity
-            - 0.00683783 * self._temp * self._temp
-            - 0.05481717 * self._humidity * self._humidity
-            + 0.00122874 * self._temp * self._temp * self._humidity
-            + 0.00085282 * self._temp * self._humidity * self._humidity
-            - 0.00000199 * self._temp * self._temp * self._humidity * self._humidity,
-            self._decimals,
-        )
-
+        self.async_schedule_update_ha_state()
