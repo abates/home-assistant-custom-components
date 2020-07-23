@@ -6,6 +6,7 @@ from homeassistant.components.mpd.media_player import MpdDevice
 from homeassistant.components.mpd.media_player import (
     PLATFORM_SCHEMA as MPD_PLATFORM_SCHEMA,
 )
+from aiohttp.client_exceptions import ClientConnectorError
 from homeassistant.helpers import aiohttp_client
 from homeassistant.util import ssl
 
@@ -72,7 +73,7 @@ class MopidyDevice(MpdDevice):
                 _LOGGER.warning(
                     "Request %s failed with Server code %d", url, response.status,
                 )
-        except ConnectionError as ex:
+        except ClientConnectorError as ex:
             self._update_success = False
             _LOGGER.warning("Failed to connect to %s: %s", url, ex)
         except SSLCertVerificationError as ex:
