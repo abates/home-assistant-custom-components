@@ -1,9 +1,8 @@
 """Control for monoprice multizone amplifier over a REST interface"""
 
-import asyncio
 import logging
 from ssl import SSLCertVerificationError
-from aiohttp.client_exceptions import ClientConnectorError
+from aiohttp.client_exceptions import ClientError
 
 import voluptuous as vol
 
@@ -118,7 +117,7 @@ class Monoprice:
                     url,
                     response.status,
                 )
-        except ClientConnectorError as ex:
+        except ClientError as ex:
             _LOGGER.warning("Failed to connect to %s: %s", url, ex)
         except SSLCertVerificationError as ex:
             _LOGGER.warning("SSL Verification failed")
