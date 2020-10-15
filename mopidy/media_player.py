@@ -1,6 +1,7 @@
 """Support to interact with a Music Player Daemon."""
 from ssl import SSLCertVerificationError
 import voluptuous as vol
+from urllib.parse import urljoin
 
 from homeassistant.components.mpd.media_player import MpdDevice
 from homeassistant.components.mpd.media_player import (
@@ -76,7 +77,7 @@ class MopidyDevice(MpdDevice):
                 if response.content_type == "application/json":
                     data = await response.json()
                     if len(data["result"][uri]) > 0:
-                        url = f"{self._url}{data['result'][uri][0]['uri']}"
+                        url = urljoin(self._url, data["result"][uri][0]["uri"])
                         _LOGGER.debug("Found artwork URL: %s", url)
                         return url
                     _LOGGER.debug("No artwork found")
