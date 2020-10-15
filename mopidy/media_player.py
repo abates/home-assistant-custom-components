@@ -23,7 +23,11 @@ import logging
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORM_SCHEMA = MPD_PLATFORM_SCHEMA.extend({vol.Required(CONF_URL): cv.string,})
+PLATFORM_SCHEMA = MPD_PLATFORM_SCHEMA.extend(
+    {
+        vol.Required(CONF_URL): cv.string,
+    }
+)
 
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
@@ -51,7 +55,7 @@ class MopidyDevice(MpdDevice):
         self.update = None
 
     async def _get_image_url(self, uri):
-        _LOGGER.info(f"Getting image for {uri}")
+        _LOGGER.debug(f"Getting image for {uri}")
         url = f"{self._url}/mopidy/rpc"
         data = {
             "jsonrpc": "2.0",
@@ -62,16 +66,31 @@ class MopidyDevice(MpdDevice):
 
         try:
             response = await self._session.request(
-                "POST", url, json=data, ssl=self._ssl_context,
+                "POST",
+                url,
+                json=data,
+                ssl=self._ssl_context,
             )
 
             if response.status == 200:
                 if response.content_type == "application/json":
                     data = await response.json()
-                    return data["result"][uri][0]["uri"]
+                    if len(data["result"][uri]) > 0:
+                        url = f"{self._url}{data['result'][uri][0]['uri']}"
+                        _LOGGER.debug("Found artwork URL: %s", url)
+                        return url
+                    _LOGGER.debug("No artwork found")
+                    return None
+                _LOGGER.warning(
+                    "Cannot process content type %s: %s",
+                    response.content_type,
+                    response,
+                )
             else:
                 _LOGGER.warning(
-                    "Request %s failed with Server code %d", url, response.status,
+                    "Request %s failed with Server code %d",
+                    url,
+                    response.status,
                 )
         except ClientConnectorError as ex:
             self._update_success = False
@@ -100,4 +119,5 @@ class MopidyDevice(MpdDevice):
     @property
     def media_image_url(self):
         """Image url of current playing media."""
+        _LOGGER.debug("Returning image url: %s", self._image_url)
         return self._image_url
