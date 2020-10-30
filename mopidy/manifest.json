@@ -1,8 +1,0 @@
-{
-  "domain": "mopidy",
-  "name": "Mopidy integration using Mopidy JSON-RPC",
-  "documentation": "",
-  "requirements": [],
-  "codeowners": ["@abates"],
-  "config_flow": false
-}

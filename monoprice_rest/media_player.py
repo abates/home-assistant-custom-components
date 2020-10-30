@@ -94,6 +94,9 @@ class Monoprice:
 
     async def _request(self, method, url):
         url = f"{self._url}/{url}"
+        if self._session.closed:
+            return None
+
         try:
             response = await self._session.request(
                 method,
