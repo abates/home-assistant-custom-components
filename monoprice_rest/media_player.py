@@ -266,36 +266,36 @@ class MonopriceZone(MediaPlayerEntity):
             )
             self.schedule_update_ha_state(True)
 
-    async def select_source(self, source):
+    async def async_select_source(self, source):
         """Set input source."""
         if source not in self._source_name_id:
             return
         idx = self._source_name_id[source]
         await self._monoprice.put(f"{self._zone_id}/source/{idx}")
 
-    async def turn_on(self):
+    async def async_turn_on(self):
         """Turn the media player on."""
         await self._monoprice.put(f"{self._zone_id}/power/True")
 
-    async def turn_off(self):
+    async def async_turn_off(self):
         """Turn the media player off."""
         await self._monoprice.put(f"{self._zone_id}/power/False")
 
-    async def mute_volume(self, mute):
+    async def async_mute_volume(self, mute):
         """Mute (true) or unmute (false) media player."""
         await self._monoprice.put(f"{self._zone_id}/mute/{mute}")
 
-    async def set_volume_level(self, volume):
+    async def async_set_volume_level(self, volume):
         """Set volume level, range 0..1."""
         await self._monoprice.put(f"{self._zone_id}/volume/{int(volume * 38)}")
 
-    async def volume_up(self):
+    async def async_volume_up(self):
         """Volume up the media player."""
         if self._volume is None:
             return
         await self._monoprice.put(f"{self._zone_id}/volume/{min(self._volume + 1, 38)}")
 
-    async def volume_down(self):
+    async def async_volume_down(self):
         """Volume down media player."""
         if self._volume is None:
             return
