@@ -1,5 +1,6 @@
 {
   "domain": "schedule",
+  "version": "1.0.0",
   "name": "Schedule Sensor",
   "documentation": "./",
   "dependencies": [],

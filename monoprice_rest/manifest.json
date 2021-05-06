@@ -1,5 +1,6 @@
 {
   "domain": "monoprice_rest",
+  "version": "1.0.0",
   "name": "Monoprice 6-Zone Amplifier via REST API",
   "documentation": "",
   "requirements": [],
