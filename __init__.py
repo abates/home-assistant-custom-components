@@ -22,10 +22,9 @@ def nth_day(year, month, dow, week):
 
 old_init = TemplateEnvironment.__init__
 
-
-def new_init(self, hass):
+def new_init(self, hass, limited=False, strict=False):
     """Initialize the jinja2 environment."""
-    old_init(self, hass)
+    old_init(self, hass, limited, strict)
     self.globals["nth_day"] = nth_day
 
 

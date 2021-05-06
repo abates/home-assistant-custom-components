@@ -1,6 +1,7 @@
 {
   "domain": "feels_like",
   "name": "Feels Like Sensor",
+  "version": "1.0.0",
   "documentation": "./",
   "dependencies": [],
   "codeowners": [],
